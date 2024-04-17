@@ -162,7 +162,7 @@ function executeChatCommand(text, callback) {
 
         // Функция для обновления позиции ссылки
         const updateAdminLinkPosition = (isSaveVisible) => {
-            const yOffset = isSaveVisible ? '50px' : '25px'; // Поднимаем или опускаем на 30px
+            const yOffset = isSaveVisible ? '25px' : '25px'; // Поднимаем или опускаем на 30px
             adminLink.style.bottom = yOffset;
         };
 
