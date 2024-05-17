@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         Web chat GPT automatization
 // @namespace    https://t.me/seo_drift
-// @version      2.0
+// @version      3.1
 // @description  Добавляет функционал для построчной генерации и сохранения этих строк в html формате
 // @author       https://t.me/seo_drift by @seo_pro
-// @match        https://chat.openai.com/*
+// @match        https://chatgpt.com/*
 // @grant        none
 // ==/UserScript==
 
@@ -32,26 +32,33 @@
         },
 
         executePlan: function() {
-    if (!this.lines || this.lines.length === 0) {
-        this.lines = this.textarea.value.split('\n').filter(line => line.trim() !== '');
-    }
+            if (!this.lines || this.lines.length === 0) {
+                this.lines = this.textarea.value.split('\n').filter(line => line.trim() !== '');
+            }
 
-    if (this.lines.length > 0) {
-        const line = this.lines.shift();
-        this.textarea.value = this.lines.join('\n');
-        executeChatCommand(line, this.checkForCompletion.bind(this));
-    } else {
-        this.saveButton.style.display = 'block';
-    }
-},
-
-        checkForCompletion: function() {
             if (this.lines.length > 0) {
-                setTimeout(() => {
-                    this.executePlan();
-                }, 1000); // Добавляем задержку перед отправкой следующей строки
+                const line = this.lines.shift();
+                this.textarea.value = this.lines.join('\n');
+                console.log(`Sending line: ${line}`);
+                executeChatCommand(line, this.checkForCompletion.bind(this));
             } else {
                 this.saveButton.style.display = 'block';
+            }
+        },
+
+        checkForCompletion: function() {
+            const chatContentSelector = '.mt-1.flex.gap-3.empty\\:hidden.juice\\:-ml-3';
+            const chatContent = document.querySelector(chatContentSelector);
+
+            if (chatContent) {
+                setTimeout(() => {
+                    this.copyChatContent();
+                    this.executePlan();
+                }, 2000); // Увеличиваем задержку перед отправкой следующей строки
+            } else {
+                setTimeout(() => {
+                    this.checkForCompletion();
+                }, 1000); // Увеличиваем задержку для проверки наличия ответа
             }
         },
 
@@ -59,7 +66,7 @@
             const chatContents = document.querySelectorAll('.markdown.prose.w-full.break-words.dark\\:prose-invert.light');
             let newContent = "";
             chatContents.forEach(content => {
-                newContent += content.innerHTML + "<br>"; // Разделитель диалогов - можно убрать вообще или изменить
+                newContent += content.innerHTML + "<br>";
             });
 
             if (this.articleContent.trim() !== newContent.trim()) {
@@ -68,7 +75,7 @@
         },
 
         saveArticleContent: function() {
-            this.copyChatContent(); // Update the article content before saving
+            this.copyChatContent();
             if (!this.articleContent.trim()) {
                 alert("Статья пуста. Нет содержимого для сохранения.");
                 return;
@@ -84,37 +91,31 @@
         },
     };
 
-    // Изменения в executeChatCommand для учета доступности кнопки отправки
-function executeChatCommand(text, callback) {
-    const inputSelector = document.querySelector('input[type="text"], textarea');
-    if (!inputSelector) {
-        console.error("Input element not found.");
-        return;
-    }
-
-    inputSelector.value = text;
-    inputSelector.dispatchEvent(new Event('input', { bubbles: true }));
-
-    const sendButton = document.querySelector('button[data-testid="send-button"]');
-    if (sendButton && !sendButton.disabled) {
-        sendButton.click();
-        if (callback) {
-            callback(); // Вызываем функцию обратного вызова сразу после отправки сообщения
+    function executeChatCommand(text, callback) {
+        const inputSelector = document.querySelector('#prompt-textarea');
+        if (!inputSelector) {
+            console.error("Input element not found.");
+            return;
         }
-    } else {
-        setTimeout(() => {
-            executeChatCommand(text, callback); // Повторно вызываем функцию, если кнопка отправки недоступна
-        }, 500);
-    }
 
-    // Добавляем задержку перед следующей отправкой сообщения
-    setTimeout(() => {
-        if (this.lines.length > 0) {
-            this.executePlan();
+        inputSelector.value = text;
+        inputSelector.dispatchEvent(new Event('input', { bubbles: true }));
+
+        const sendButton = document.querySelector('button.mb-1.mr-1.flex.h-8.w-8.items-center.justify-center.rounded-full.bg-black.text-white.transition-colors.hover\\:opacity-70.focus-visible\\:outline-none.focus-visible\\:outline-black');
+        if (sendButton && !sendButton.disabled) {
+            sendButton.click();
+            if (callback) {
+                setTimeout(() => {
+                    callback();
+                }, 1500); // Увеличиваем задержку после отправки сообщения
+            }
+        } else {
+            console.error("Send button not found or is disabled.");
+            setTimeout(() => {
+                executeChatCommand(text, callback);
+            }, 1000); // Увеличиваем задержку перед повторной попыткой отправки сообщения
         }
-    }, 1000);
-}
-
+    }
 
     function addCustomUI() {
         const menu = document.createElement('div');
@@ -141,35 +142,31 @@ function executeChatCommand(text, callback) {
         executeButton.onclick = () => ArticlePlan.executePlan();
         menu.appendChild(executeButton);
 
-        // Moved the creation of the save button here to ensure it's below the execute plan button
         const saveButton = document.createElement('button');
         saveButton.textContent = 'Сохранить статью';
-        saveButton.style.display = 'none'; // Initially hidden
+        saveButton.style.display = 'none';
         saveButton.onclick = () => ArticlePlan.saveArticleContent();
         menu.appendChild(saveButton);
-        ArticlePlan.saveButton = saveButton; // Assign to the global object for later access
+        ArticlePlan.saveButton = saveButton;
 
         const adminLink = document.createElement('a');
-        adminLink.href = 'https://t.me/+G1jLhsXiHNk3MDQy'; // Здесь можно вставить реальную ссылку
+        adminLink.href = 'https://t.me/+G1jLhsXiHNk3MDQy';
         adminLink.textContent = 'by @seo_drift';
         adminLink.style.position = 'fixed';
-        adminLink.style.bottom = '15px'; // Начальное положение
+        adminLink.style.bottom = '15px';
         adminLink.style.right = '20px';
-        adminLink.style.color = 'blue'; // Синий цвет текста, как у ссылок
-        adminLink.style.textDecoration = 'underline'; // Подчеркивание, как у ссылок
+        adminLink.style.color = 'blue';
+        adminLink.style.textDecoration = 'underline';
         adminLink.style.zIndex = '10001';
         document.body.appendChild(adminLink);
 
-        // Функция для обновления позиции ссылки
         const updateAdminLinkPosition = (isSaveVisible) => {
-            const yOffset = isSaveVisible ? '25px' : '25px'; // Поднимаем или опускаем на 30px
+            const yOffset = isSaveVisible ? '25px' : '25px';
             adminLink.style.bottom = yOffset;
         };
 
-        // Переменная для хранения состояния кнопки "Сохранить статью"
         let saveButtonVisible = false;
 
-        // Переопределение методов объекта ArticlePlan для вызова updateAdminLinkPosition
         const originalExecutePlan = ArticlePlan.executePlan.bind(ArticlePlan);
         ArticlePlan.executePlan = function() {
             originalExecutePlan();
@@ -184,7 +181,6 @@ function executeChatCommand(text, callback) {
             updateAdminLinkPosition(saveButtonVisible);
         };
 
-        // Устанавливаем начальное положение ссылки
         updateAdminLinkPosition(saveButtonVisible);
     }
 
